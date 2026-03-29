@@ -210,3 +210,68 @@ def get_owners_with_specific_lastname(db: Session = Depends(get_db)):
     if result is None:
         raise HTTPException(status_code=404, detail="Таких фамилий нет")
     return create_response_with_sql(result)
+
+
+
+# ===== Новые аналитические эндпоинты =====
+
+@router.get("/analytics/owners-surname-ova", tags=["📊 Аналитика"])
+def get_owners_surname_ova(db: Session = Depends(get_db)):
+    """
+    Простой уровень: Найти всех владельцев, фамилии которых заканчиваются на «ова»
+    """
+    result = crud.get_owners_with_surname_ending_ova(db)
+
+    formatted_result = []
+    for row in result:
+        formatted_result.append({
+            "id": row[0],
+            "first_name": row[1],
+            "last_name": row[2]
+        })
+
+    return create_response_with_sql({
+        "владельцы": formatted_result,
+        "количество": len(formatted_result)
+    })
+
+
+@router.get("/analytics/youngest-owners-most-wings", tags=["📊 Аналитика"])
+def get_youngest_owners_most_wings(db: Session = Depends(get_db)):
+    """
+    Продвинутый уровень: 5 самых молодых владельцев с максимальным числом экспонатов
+    """
+    result = crud.get_youngest_owners_with_most_wings(db)
+
+    formatted_result = []
+    for row in result:
+        formatted_result.append({
+            "id": row[0],
+            "first_name": row[1],
+            "last_name": row[2],
+            "birth_date": row[3].isoformat() if row[3] else None,
+            "количество_экспонатов": row[4]
+        })
+
+    return create_response_with_sql(formatted_result)
+
+
+@router.get("/analytics/promising-cities", tags=["📊 Аналитика"])
+def get_promising_cities(db: Session = Depends(get_db)):
+    """
+    Определить самые перспективные города для региональной рекламы
+    """
+    result = crud.get_promising_cities_for_regional_advertising(db)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Данные не найдены")
+
+    formatted_result = []
+    for row in result:
+        formatted_result.append({
+            "город": row[0],
+            "общие_затраты_на_маркетинг": float(row[1]) if row[1] else 0,
+            "средние_затраты_на_маркетинг": float(row[2]) if row[2] else 0
+        })
+
+    return create_response_with_sql(formatted_result)

@@ -192,3 +192,69 @@ def get_owners_with_specific_lastname(db: Session):
         for r in result
     ]
 
+# ===== Функции для новых аналитических отчётов =====
+
+def get_owners_with_surname_ending_ova(db: Session):
+    """
+    Простой уровень: Найти всех владельцев, фамилии которых заканчиваются на «ова»
+    """
+    result = (db.query(
+        models.Owner.id,
+        models.Owner.first_name,
+        models.Owner.last_name
+    )
+    .filter(models.Owner.last_name.like('%ова'))
+    .order_by(models.Owner.last_name)
+    .all())
+    return result
+
+
+def get_youngest_owners_with_most_wings(db: Session):
+    """
+    Продвинутый уровень: 5 самых молодых владельцев с максимальным числом экспонатов
+    """
+    result = (db.query(
+        models.Owner.id,
+        models.Owner.first_name,
+        models.Owner.last_name,
+        models.Owner.birth_date,
+        func.count(models.Wing.id).label('wings_count')
+    )
+    .outerjoin(models.Wing, models.Owner.id == models.Wing.owner_id)
+    .group_by(
+        models.Owner.id,
+        models.Owner.first_name,
+        models.Owner.last_name,
+        models.Owner.birth_date
+    )
+    .order_by(
+        desc('wings_count'),
+        desc(models.Owner.birth_date)
+    )
+    .limit(5)
+    .all())
+    return result
+
+
+def get_promising_cities_for_regional_advertising(db: Session):
+    """
+    Определить самые перспективные города для региональной рекламы
+    """
+    # Извлекаем название города из поля location (формат "Город, ...")
+    city_expr = func.trim(
+        func.substr(
+            models.Place.location,
+            1,
+            func.instr(models.Place.location, ',') - 1
+        )
+    )
+    result = (db.query(
+        city_expr.label('city'),
+        func.sum(models.Move.price).label('total_marketing_cost'),
+        func.avg(models.Move.price).label('avg_marketing_cost')
+    )
+    .join(models.Move, models.Place.id == models.Move.place_id)
+    .group_by(city_expr)
+    .order_by(desc('total_marketing_cost'))
+    .all())
+    return result
